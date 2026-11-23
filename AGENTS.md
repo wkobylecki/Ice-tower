@@ -26,11 +26,17 @@ Gra zręcznościowa w stylu Icy Tower. Cały projekt to **jeden samowystarczalny
   kolory interpolowane przy wejściu w kolejny biom, a `drawBiome()` rysuje krajobraz (`ridge`, `drawSun`, `drawClouds`).
 - Sklep: `SKIN_DATA`, `diamonds` (waluta), `openShop()`, `pickSkin()`; tabela wyników w `saveScore()`
   (`localStorage: ice-diamonds / ice-skins / ice-skin / ice-scores`).
-- Pułapki: `spawnHazard()` / `updateHazards()` / `drawHazards()` — spadające sople od 50 m.
+- Pułapki: `spawnHazard()` / `updateHazards()` / `drawHazards()` — spadające sople od 50 m; im wyżej, tym więcej
+  (limit 5 → 14), szybciej i większe, z lekkim dryfem w bok. Wysokość skalowana przez `ramp`.
+- Trudność: `makeFloor()` liczy `hard = clamp(meters / 3800, 0, 1)` i zwęża półki o połowę na 3,8 km
+  (min. 64 px w skali `WORLD_W / 480`) — dolna szerokość nigdy nie schodzi poniżej przeskakiwalnej.
 - `resize()` / `SCALE` / `VIEW_W` / `WORLD_W` / `OFF_X` / `VH` — skalowanie świata do okna; świat jest
   wyśrodkowany, marginesy wypełnia tło (`drawSideShade`).
 - `makeFloor()` / `addFloorUp()` / `generateWorld()` — proceduralne piętra (jednostronne kolizje),
-  sople, sprężyny, kryształy.
+  sople, sprężyny, kryształy. Każde piętro dostaje fakturę (`jag` — nierówny spód, `strata` — warstwy skały,
+  `cracks` — rysy) rysowaną w `drawFloor()`: bryła z cieniem krawędzi, połyskiem, czapą śniegu i soplami.
+- Sceneria: `drawRocks()` (skalne ściany w marginesach `OFF_X`, parallax) i `drawBirds()` / `buildBirds()`
+  (ptaki w tle, lot sinusoidalny); górskie grzbiety dostają ośnieżone szczyty przez `ridge(..., capA)`.
 - `updatePlayer()` — ruch, coyote time, bufor skoku, wall jump i ślizg po ścianie, kolizje.
 - Płynność: `step()` zapisuje `prevCamY` / `prevX` / `prevY`, `frame()` liczy `game.alpha`, a `draw()`
   interpoluje kamerę (przesunięcie kontekstu) i gracza (`player.rx/ry`) — brak szarpania na 120/144 Hz.

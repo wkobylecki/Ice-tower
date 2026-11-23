@@ -1152,7 +1152,11 @@
 
   function makeFloor(y) {
     const seed = Math.random() * 900 + 7;
-    const width = (136 + Math.random() * 108) * (WORLD_W / 480);
+    // im wyżej, tym węższe półki — wieża robi się coraz bardziej wymagająca
+    const meters = Math.max(0, -y / 8);
+    const hard = clamp(meters / 3800, 0, 1);
+    const unit = WORLD_W / 480;
+    const width = Math.max(64 * unit, (128 + Math.random() * 112) * unit * (1 - 0.5 * hard));
     const minX = WALL + 16;
     const maxX = WORLD_W - WALL - 16 - width;
     const center = clamp(platformRef + (Math.random() * 2 - 1) * 126, minX + width / 2, maxX + width / 2);
@@ -1166,7 +1170,7 @@
       : null;
 
     const icicles = [];
-    const count = 2 + Math.floor(Math.random() * 4);
+    const count = 2 + Math.floor(Math.random() * (3 + Math.round(hard * 4)));
     for (let i = 0; i < count; i++) {
       icicles.push({
         x: seg.x + 10 + rnd(seed + i * 3.3) * Math.max(8, seg.w - 30),
@@ -1174,7 +1178,32 @@
         h: 7 + rnd(seed + i * 11.7) * 20
       });
     }
-    return { y: y, seed: seed, segs: [seg], icicles: icicles, pad: pad };
+
+    // faktura bloku: nierówny spód, warstwy skały, rysy
+    const jag = [];
+    for (let i = 0; i <= 9; i++) jag.push(5 + rnd(seed + i * 4.7 + 1.3) * 12);
+
+    const strata = [];
+    for (let i = 0; i < 4; i++) {
+      strata.push({
+        y: 5 + rnd(seed + i * 2.3 + 1.1) * 18,
+        x: rnd(seed + i * 9.1) * seg.w * 0.35,
+        w: seg.w * (0.35 + rnd(seed + i * 6.1) * 0.65),
+        a: 0.05 + rnd(seed + i * 3.7) * 0.09
+      });
+    }
+
+    const cracks = [];
+    for (let i = 0; i < 3; i++) {
+      cracks.push({
+        x: 10 + rnd(seed + i * 8.3 + 2.2) * Math.max(6, seg.w - 26),
+        dx: (rnd(seed + i * 7.7) - 0.5) * 7,
+        h: 6 + rnd(seed + i * 5.9) * 13,
+        a: 0.12 + rnd(seed + i * 1.3) * 0.14
+      });
+    }
+
+    return { y: y, seed: seed, segs: [seg], icicles: icicles, pad: pad, jag: jag, strata: strata, cracks: cracks };
   }
 
   function addFloorUp() {
@@ -1264,6 +1293,7 @@
 
     generateWorld();
     buildSnow();
+    buildBirds();
     updateHud(true);
   }
 
@@ -1702,17 +1732,22 @@
     if (follow < game.camY) game.camY += (follow - game.camY) * 0.35;
   }
 
-  // spadające sople — pułapka od 50 m w górę
+  // spadające sople — pułapka od 50 m w górę, im wyżej tym gęściej i szybciej
   function spawnHazard() {
     if (game.heightM < 50) return;
-    if (game.hazards.length >= 5) return;
-    if (Math.random() > 0.004) return;
+    const ramp = clamp((game.heightM - 50) / 2600, 0, 1);
+    const cap = 5 + Math.round(ramp * 9);
+    if (game.hazards.length >= cap) return;
+    if (Math.random() > 0.004 + ramp * 0.021) return;
+    const big = Math.random() < ramp * 0.55;
     game.hazards.push({
       x: WALL + 44 + Math.random() * (WORLD_W - WALL * 2 - 88),
-      y: game.camY - 30,
-      vy: 1.1 + Math.random() * 1.2,
+      y: game.camY - 30 - Math.random() * 40,
+      vy: 1.0 + Math.random() * 1.2 + ramp * 1.7,
+      vx: (Math.random() - 0.5) * (0.15 + ramp * 1.0),
       rot: Math.random() * Math.PI * 2,
-      len: 14 + Math.random() * 10
+      len: (14 + Math.random() * 10) * (big ? 1.6 : 1),
+      w: big ? 9 : 6
     });
   }
 
@@ -1721,8 +1756,11 @@
     for (let i = game.hazards.length - 1; i >= 0; i--) {
       const h = game.hazards[i];
       h.vy += 0.06;
-      if (h.vy > 7) h.vy = 7;
+      if (h.vy > 8) h.vy = 8;
       h.y += h.vy;
+      h.x += h.vx || 0;
+      if (h.x < WALL + 14) { h.x = WALL + 14; h.vx = Math.abs(h.vx || 0); }
+      if (h.x > WORLD_W - WALL - 14) { h.x = WORLD_W - WALL - 14; h.vx = -Math.abs(h.vx || 0); }
       h.rot += 0.04;
 
       const hitX = h.x > p.x - 2 && h.x < p.x + p.w + 2;
@@ -1797,6 +1835,15 @@
       if (s.y > VH + 6) { s.y = -6; s.x = Math.random() * VIEW_W; }
       if (s.x < -6) s.x = VIEW_W + 6;
       if (s.x > VIEW_W + 6) s.x = -6;
+    }
+
+    if (game.birds) {
+      for (let i = 0; i < game.birds.length; i++) {
+        const b = game.birds[i];
+        b.x += b.sp;
+        if (b.x < -40) b.x = VIEW_W + 40;
+        if (b.x > VIEW_W + 40) b.x = -40;
+      }
     }
   }
 
@@ -1889,7 +1936,7 @@
   }
 
   /* ---------- krajobraz biomu (parallax) ---------- */
-  function ridge(baseY, amp, color, par, step, sharp) {
+  function ridge(baseY, amp, color, par, step, sharp, capA) {
     const shift = game.camY * par;
     const i0 = Math.floor(shift / step);
     const off = shift - i0 * step;
@@ -1911,6 +1958,26 @@
     ctx.lineTo(VIEW_W + step * 1.5, VH + 90);
     ctx.closePath();
     ctx.fill();
+
+    // ośnieżone szczyty — góry wyglądają jak prawdziwe skalne turnie
+    if (capA && sharp) {
+      ctx.fillStyle = 'rgba(255, 255, 255, ' + capA + ')';
+      for (let i = -1; i < Math.ceil(VIEW_W / step) + 2; i++) {
+        const n = rnd((i0 + i) * 7.13 + 3.7);
+        const x = i * step - off;
+        const h = baseY - amp * (0.35 + n * 0.75);
+        const ph = amp * 0.32;
+        const px = x + step * 0.42;
+        ctx.beginPath();
+        ctx.moveTo(px, h + 1);
+        ctx.lineTo(px + step * 0.11, h + ph);
+        ctx.lineTo(px + step * 0.035, h + ph * 0.42);
+        ctx.lineTo(px - step * 0.05, h + ph * 0.78);
+        ctx.lineTo(px - step * 0.12, h + ph * 1.05);
+        ctx.closePath();
+        ctx.fill();
+      }
+    }
   }
 
   function drawSun(x, y, r, core, halo) {
@@ -1944,6 +2011,107 @@
       ctx.ellipse(x - w * 0.5, y + w * 0.02, w * 0.45, w * 0.17, 0, 0, Math.PI * 2);
       ctx.fill();
     }
+  }
+
+  /* ---------- skalne ściany po bokach (parallax) ---------- */
+  function drawRocks() {
+    const maxW = OFF_X - 6;
+    if (maxW < 24) return;
+    const cell = 260;
+    const shift = game.camY * 0.34;
+    const i0 = Math.floor(shift / cell);
+    const off = shift - i0 * cell;
+    const base = mixC(PAL.plat[3], [8, 16, 30], 0.45);
+    const tip = mixC(PAL.cap, PAL.plat[2], 0.45);
+
+    for (let side = 0; side < 2; side++) {
+      for (let k = -1; k < Math.ceil(VH / cell) + 2; k++) {
+        const n = rnd((i0 + k) * 11.3 + side * 47.1);
+        const w = 24 + n * maxW * 0.9;
+        const top = k * cell + off - cell * 0.25;
+        const bot = top + cell * (0.9 + rnd((i0 + k) * 5.7 + side) * 0.5);
+        const g = ctx.createLinearGradient(0, top, 0, bot);
+        g.addColorStop(0, rgba(tip, 0.55));
+        g.addColorStop(0.45, rgba(base, 0.8));
+        g.addColorStop(1, rgba(mixC(base, [4, 8, 16], 0.5), 0.9));
+        ctx.fillStyle = g;
+        ctx.beginPath();
+        if (side === 0) {
+          ctx.moveTo(0, bot);
+          ctx.lineTo(0, top);
+          for (let i = 0; i <= 4; i++) {
+            const t = i / 4;
+            const yy = top + (bot - top) * t;
+            const xx = w * (0.45 + rnd((i0 + k) * 3.3 + i * 7.7 + side) * 0.6) * (1 - t * 0.35);
+            ctx.lineTo(xx, yy);
+          }
+          ctx.lineTo(0, bot);
+        } else {
+          ctx.moveTo(VIEW_W, bot);
+          ctx.lineTo(VIEW_W, top);
+          for (let i = 0; i <= 4; i++) {
+            const t = i / 4;
+            const yy = top + (bot - top) * t;
+            const xx = VIEW_W - w * (0.45 + rnd((i0 + k) * 3.3 + i * 7.7 + side) * 0.6) * (1 - t * 0.35);
+            ctx.lineTo(xx, yy);
+          }
+          ctx.lineTo(VIEW_W, bot);
+        }
+        ctx.closePath();
+        ctx.fill();
+
+        // śnieżny nalot na półce skalnej
+        ctx.fillStyle = rgba(PAL.cap, 0.32);
+        ctx.beginPath();
+        if (side === 0) {
+          ctx.moveTo(0, top + 6);
+          ctx.lineTo(w * 0.52, top + 11);
+          ctx.lineTo(0, top + 24);
+        } else {
+          ctx.moveTo(VIEW_W, top + 6);
+          ctx.lineTo(VIEW_W - w * 0.52, top + 11);
+          ctx.lineTo(VIEW_W, top + 24);
+        }
+        ctx.closePath();
+        ctx.fill();
+      }
+    }
+  }
+
+  /* ---------- ptaki krążące nad wieżą ---------- */
+  function buildBirds() {
+    game.birds = [];
+    const n = 3 + Math.floor(Math.random() * 3);
+    for (let i = 0; i < n; i++) {
+      game.birds.push({
+        x: Math.random() * VIEW_W,
+        y: Math.random() * VH,
+        sp: (0.18 + Math.random() * 0.5) * (Math.random() < 0.5 ? -1 : 1),
+        ph: Math.random() * Math.PI * 2,
+        fl: 0.05 + Math.random() * 0.06,
+        size: 3.4 + Math.random() * 3.4
+      });
+    }
+  }
+
+  function drawBirds() {
+    if (!game.birds) return;
+    ctx.lineCap = 'round';
+    for (let i = 0; i < game.birds.length; i++) {
+      const b = game.birds[i];
+      const span = VH + 140;
+      const y = (((b.y - game.camY * 0.14) % span) + span) % span - 70;
+      const wing = Math.sin(game.time * b.fl * 3 + b.ph);
+      const fl = b.size * (0.55 + Math.abs(wing) * 0.55);
+      ctx.strokeStyle = 'rgba(16, 30, 48, 0.5)';
+      ctx.lineWidth = Math.max(1.2, b.size * 0.34);
+      ctx.beginPath();
+      ctx.moveTo(b.x - b.size * 1.8, y + wing * fl);
+      ctx.quadraticCurveTo(b.x - b.size * 0.7, y - fl * 0.5, b.x, y);
+      ctx.quadraticCurveTo(b.x + b.size * 0.7, y - fl * 0.5, b.x + b.size * 1.8, y + wing * fl);
+      ctx.stroke();
+    }
+    ctx.lineCap = 'butt';
   }
 
   function drawBiome() {
@@ -2004,9 +2172,9 @@
     if (scene === 'peaks') {
       drawSun(VIEW_W * 0.28, VH * 0.16, 26, [255, 246, 220], [255, 220, 160]);
       drawClouds(0.13, VH * 0.24, 470);
-      ridge(VH * 0.62, 190, 'rgba(120, 134, 176, 0.55)', 0.08, 330, true);
-      ridge(VH * 0.74, 200, 'rgba(80, 94, 138, 0.72)', 0.16, 260, true);
-      ridge(VH * 0.90, 210, 'rgba(44, 52, 84, 0.92)', 0.26, 210, true);
+      ridge(VH * 0.62, 190, 'rgba(120, 134, 176, 0.55)', 0.08, 330, true, 0.5);
+      ridge(VH * 0.74, 200, 'rgba(80, 94, 138, 0.72)', 0.16, 260, true, 0.34);
+      ridge(VH * 0.90, 210, 'rgba(44, 52, 84, 0.92)', 0.26, 210, true, 0.16);
       return;
     }
 
@@ -2030,9 +2198,9 @@
     // lodowe góry (domyślnie)
     drawSun(VIEW_W * 0.7, VH * 0.16, 24, [255, 255, 255], [200, 235, 255]);
     drawClouds(0.16, VH * 0.18, 500);
-    ridge(VH * 0.58, 210, 'rgba(150, 196, 224, 0.6)', 0.07, 320, true);
-    ridge(VH * 0.72, 180, 'rgba(102, 158, 196, 0.72)', 0.15, 260, true);
-    ridge(VH * 0.90, 170, 'rgba(58, 108, 150, 0.9)', 0.25, 210, true);
+    ridge(VH * 0.58, 210, 'rgba(150, 196, 224, 0.6)', 0.07, 320, true, 0.55);
+    ridge(VH * 0.72, 180, 'rgba(102, 158, 196, 0.72)', 0.15, 260, true, 0.4);
+    ridge(VH * 0.90, 170, 'rgba(58, 108, 150, 0.9)', 0.25, 210, true, 0.2);
   }
 
   // przyciemnienie marginesów poza wieżą — skupia wzrok na grze
@@ -2141,49 +2309,127 @@
 
   function drawFloor(f) {
     const y = f.y - game.camY;
-    if (y < -60 || y > VH + 60) return;
+    if (y < -90 || y > VH + 90) return;
+    const jag = f.jag || [7, 9, 7, 10, 7, 9];
+    const jn = Math.max(2, jag.length - 1);
+    const th = 20;
 
     for (let k = 0; k < f.segs.length; k++) {
       const s = f.segs[k];
 
-      const g = ctx.createLinearGradient(0, y, 0, y + 22);
-      g.addColorStop(0, rgb(PAL.plat[0]));
-      g.addColorStop(0.22, rgb(PAL.plat[1]));
-      g.addColorStop(0.7, rgb(PAL.plat[2]));
-      g.addColorStop(1, rgb(PAL.plat[3]));
-      ctx.fillStyle = g;
+            // --- bryła: nieregularny, ociosany spód
       ctx.beginPath();
-      ctx.moveTo(s.x, y);
-      ctx.lineTo(s.x + s.w, y);
-      ctx.lineTo(s.x + s.w, y + 18);
-      ctx.lineTo(s.x + s.w - 8, y + 22);
-      ctx.lineTo(s.x + 8, y + 22);
-      ctx.lineTo(s.x, y + 18);
+      ctx.moveTo(s.x, y + 2);
+      ctx.lineTo(s.x + s.w, y + 2);
+      ctx.lineTo(s.x + s.w, y + th);
+      for (let i = jn; i >= 0; i--) {
+        ctx.lineTo(s.x + (s.w * i) / jn, y + th + jag[i] * 0.82);
+      }
       ctx.closePath();
+
+      const g = ctx.createLinearGradient(0, y, 0, y + th + 14);
+      g.addColorStop(0, rgb(PAL.plat[0]));
+      g.addColorStop(0.2, rgb(PAL.plat[1]));
+      g.addColorStop(0.68, rgb(PAL.plat[2]));
+      g.addColorStop(1, rgb(mixC(PAL.plat[3], [6, 12, 22], 0.4)));
+      ctx.fillStyle = g;
       ctx.fill();
 
-      // czapa
-      ctx.fillStyle = rgba(PAL.cap, 0.95);
-      ctx.fillRect(s.x + 1, y, s.w - 2, 3);
+      ctx.save();
+      ctx.clip();
 
-      // refleks
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.35)';
+      // warstwy skały / załamania lodu
+      for (let i = 0; i < (f.strata ? f.strata.length : 0); i++) {
+        const st = f.strata[i];
+        ctx.strokeStyle = rgba(mixC(PAL.plat[3], [0, 0, 0], 0.3), st.a);
+        ctx.lineWidth = 1 + (i % 2) * 0.6;
+        ctx.beginPath();
+        ctx.moveTo(s.x + st.x, y + st.y);
+        ctx.quadraticCurveTo(s.x + st.x + st.w * 0.5, y + st.y + 3.4, s.x + st.x + st.w, y + st.y + 0.6);
+        ctx.stroke();
+      }
+
+      // rysy i pęknięcia
+      for (let i = 0; i < (f.cracks ? f.cracks.length : 0); i++) {
+        const c = f.cracks[i];
+        ctx.strokeStyle = 'rgba(8, 20, 34, ' + c.a.toFixed(2) + ')';
+        ctx.lineWidth = 1.1;
+        ctx.beginPath();
+        ctx.moveTo(s.x + c.x, y + 3);
+        ctx.lineTo(s.x + c.x + c.dx, y + 3 + c.h * 0.55);
+        ctx.lineTo(s.x + c.x + c.dx - 2, y + 3 + c.h);
+        ctx.stroke();
+      }
+
+      // połysk górnej płaszczyzny
+      const gl = ctx.createLinearGradient(0, y, 0, y + th + 6);
+      gl.addColorStop(0, 'rgba(255, 255, 255, 0.4)');
+      gl.addColorStop(0.45, 'rgba(255, 255, 255, 0.06)');
+      gl.addColorStop(1, 'rgba(255, 255, 255, 0)');
+      ctx.fillStyle = gl;
+      ctx.fillRect(s.x, y, s.w, th + 6);
+
       for (let i = 0; i < 3; i++) {
         const sx = s.x + 6 + rnd(f.seed + i * 5.3) * Math.max(6, s.w - 44);
-        ctx.fillRect(sx, y + 6, 18 + rnd(f.seed + i) * 22, 2);
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+        ctx.fillRect(sx, y + 7 + i * 3, 16 + rnd(f.seed + i) * 20, 1.6);
       }
+
+      // cień przy krawędziach — bryła dostaje głębi
+      const eL = ctx.createLinearGradient(s.x, 0, s.x + 10, 0);
+      eL.addColorStop(0, 'rgba(6, 18, 32, 0.35)');
+      eL.addColorStop(1, 'rgba(6, 18, 32, 0)');
+      ctx.fillStyle = eL;
+      ctx.fillRect(s.x, y, 10, th + 16);
+
+      const eR = ctx.createLinearGradient(s.x + s.w, 0, s.x + s.w - 10, 0);
+      eR.addColorStop(0, 'rgba(6, 18, 32, 0.35)');
+      eR.addColorStop(1, 'rgba(6, 18, 32, 0)');
+      ctx.fillStyle = eR;
+      ctx.fillRect(s.x + s.w - 10, y, 10, th + 16);
+
+      ctx.restore();
+
+      // czapa śniegu / piasku z miękkim, nierównym grzbietem
+      ctx.beginPath();
+      ctx.moveTo(s.x, y + 4);
+      for (let i = 0; i <= jn; i++) {
+        const bx = s.x + (s.w * i) / jn;
+        const bh = 1.4 + rnd(f.seed + i * 3.1) * 3.2;
+        ctx.quadraticCurveTo(bx - (s.w / jn) * 0.5, y + 4 - bh, bx, y + 4);
+      }
+      ctx.lineTo(s.x + s.w, y + 7);
+      ctx.lineTo(s.x, y + 7);
+      ctx.closePath();
+      ctx.fillStyle = rgba(PAL.cap, 0.97);
+      ctx.fill();
+
+      const capG = ctx.createLinearGradient(0, y - 4, 0, y + 5);
+      capG.addColorStop(0, rgba(PAL.cap, 0));
+      capG.addColorStop(1, rgba(PAL.cap, 0.32));
+      ctx.fillStyle = capG;
+      ctx.fillRect(s.x, y - 4, s.w, 9);
     }
 
-    // sople / zdobienia pod półką
-    ctx.fillStyle = rgba(PAL.accent, 0.9);
+    // sople pod półką — z gradientem i rozbłyskiem
     for (let i = 0; i < f.icicles.length; i++) {
       const ic = f.icicles[i];
+      const ig = ctx.createLinearGradient(0, y + th - 4, 0, y + th + ic.h);
+      ig.addColorStop(0, rgba(PAL.accent, 0.95));
+      ig.addColorStop(1, rgba(PAL.cap, 0.12));
+      ctx.fillStyle = ig;
       ctx.beginPath();
-      ctx.moveTo(ic.x, y + 20);
-      ctx.lineTo(ic.x + ic.w, y + 20);
-      ctx.lineTo(ic.x + ic.w / 2, y + 20 + ic.h);
+      ctx.moveTo(ic.x, y + th - 4);
+      ctx.lineTo(ic.x + ic.w, y + th - 4);
+      ctx.lineTo(ic.x + ic.w / 2, y + th + ic.h);
       ctx.closePath();
       ctx.fill();
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+      ctx.lineWidth = 0.8;
+      ctx.beginPath();
+      ctx.moveTo(ic.x + ic.w * 0.34, y + th - 2);
+      ctx.lineTo(ic.x + ic.w / 2, y + th + ic.h * 0.78);
+      ctx.stroke();
     }
 
     // sprężyna na półce
@@ -2378,18 +2624,25 @@
       ctx.save();
       ctx.translate(h.x, sy);
       ctx.rotate(Math.sin(h.rot) * 0.28);
+      const hw = h.w || 6;
       const g = ctx.createLinearGradient(0, 0, 0, h.len);
       g.addColorStop(0, 'rgba(255, 255, 255, 0.95)');
       g.addColorStop(1, 'rgba(120, 210, 255, 0.45)');
       ctx.fillStyle = g;
       ctx.beginPath();
-      ctx.moveTo(-6, 0);
-      ctx.lineTo(6, 0);
+      ctx.moveTo(-hw, 0);
+      ctx.lineTo(hw, 0);
       ctx.lineTo(0, h.len);
       ctx.closePath();
       ctx.fill();
       ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
       ctx.lineWidth = 1;
+      ctx.stroke();
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.55)';
+      ctx.lineWidth = 0.9;
+      ctx.beginPath();
+      ctx.moveTo(-hw * 0.35, 2);
+      ctx.lineTo(0, h.len * 0.82);
       ctx.stroke();
       ctx.restore();
     }
@@ -2481,6 +2734,8 @@
     }
 
     drawBackground();
+    drawRocks();
+    drawBirds();
     drawSideShade();
 
     ctx.save();
