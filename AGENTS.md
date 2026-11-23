@@ -18,14 +18,17 @@ Gra zręcznościowa w stylu Icy Tower. Cały projekt to **jeden samowystarczalny
 
 - `CFG` — fizyka: grawitacje (`gravHold/gravUp/gravDown`), `jump`, `padJump`, `maxVX`, przyspieszenia,
   `wallBounce`, `wallJumpVX/VY`.
-- `ZONES` + `buildPalette()` — 5 stref wysokości (LÓD → BAMBUS → DIAMENTY → ZŁOTO → KOSMOS),
-  kolory i dekoracje interpolowane przy wejściu w kolejną strefę.
+- `ZONES` + `buildPalette()` — 5 biomów co 1000 m (LODOWE GÓRY → PUSTYNIA → MORZE → GÓRY → KOSMOS),
+  kolory interpolowane przy wejściu w kolejny biom, a `drawBiome()` rysuje krajobraz (`ridge`, `drawSun`, `drawClouds`).
+- Sklep: `SKIN_DATA`, `diamonds` (waluta), `openShop()`, `pickSkin()`; tabela wyników w `saveScore()`
+  (`localStorage: ice-diamonds / ice-skins / ice-skin / ice-scores`).
+- Pułapki: `spawnHazard()` / `updateHazards()` / `drawHazards()` — spadające sople od 50 m.
 - `resize()` / `SCALE` / `VIEW_W` / `WORLD_W` / `OFF_X` / `VH` — skalowanie świata do okna; świat jest
   wyśrodkowany, marginesy wypełnia tło (`drawSideShade`).
 - `makeFloor()` / `addFloorUp()` / `generateWorld()` — proceduralne piętra (jednostronne kolizje),
   sople, sprężyny, kryształy.
 - `updatePlayer()` — ruch, coyote time, bufor skoku, wall jump i ślizg po ścianie, kolizje.
-- `updateCamera()` + `scrollSpeed()` — wieża przyśpiesza liniowo z wysokością (0.12 → limit 3.7).
+- `updateCamera()` + `scrollSpeed()` — wieża przyśpiesza liniowo z wysokością (0.10 → limit 3.4).
 - `step()` (logika 60 Hz) i `frame()` (pętla z akumulatorem) + `draw()`.
 - Audio: `tone()` (SFX), `SONGS` / `musicPump()` / `scheduleStep()` (muzyka per strefa, tempo rośnie
   z wysokością), `toggleMute()` (M) i `toggleFullscreen()` (F).
