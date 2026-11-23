@@ -737,7 +737,7 @@
   }
 
   function musicPump() {
-    if (!music.playing) return;
+    if (!music.playing || songOk) return;
     const a = actx;
     if (!a) return;
     if (muted || a.state !== 'running') {
@@ -756,8 +756,37 @@
     }
   }
 
+  /* ---------- podkład z pliku music.mp3 (jeśli jest w folderze gry) ---------- */
+  const song = new Audio('music.mp3');
+  song.loop = true;
+  song.preload = 'auto';
+  song.volume = 0.45;
+  song.muted = muted;
+  let songOk = false;      // utwór faktycznie gra
+  let songBroken = false;  // brak pliku / błąd odtwarzania → zostaje muzyka proceduralna
+
+  function songPlay() {
+    if (muted || songBroken) return;
+    try {
+      const pr = song.play();
+      if (pr && pr.catch) pr.catch(function () {});
+    } catch (e) { /* przeglądarka może odmówić — wtedy gra muzyka proceduralna */ }
+  }
+
+  function songPause() {
+    try { song.pause(); } catch (e) { /* ignorujemy */ }
+  }
+
+  song.addEventListener('playing', function () {
+    songOk = true;
+    if (music.playing) { music.playing = false; musicFade(0.0001, 0.7); }
+  });
+  song.addEventListener('error', function () { songBroken = true; songOk = false; });
+
   function startMusic() {
-    if (muted || music.playing) return;
+    if (muted) return;
+    songPlay();
+    if (songOk || music.playing) return;
     if (!audio()) return;
     musicGain();
     music.playing = true;
@@ -793,14 +822,16 @@
     banner: '',
     bannerT: 0,
     deathAt: -1,
-    beatBest: false
+    beatBest: false,
+    prevCamY: 0,
+    alpha: 1
   };
 
   const player = {
-    x: WORLD_W / 2 - 13,
-    y: -34,
-    w: 26,
-    h: 34,
+    x: WORLD_W / 2 - 15.5,
+    y: -41,
+    w: 31,
+    h: 41,
     vx: 0,
     vy: 0,
     onGround: false,
@@ -812,7 +843,11 @@
     wasAir: false,
     holdJump: false,
     cutJump: false,
-    wallSide: 0
+    wallSide: 0,
+    prevX: WORLD_W / 2 - 15.5,
+    prevY: -41,
+    rx: WORLD_W / 2 - 15.5,
+    ry: -41
   };
 
   const keys = { left: false, right: false };
@@ -1094,6 +1129,10 @@
 
     player.x = WORLD_W / 2 - player.w / 2;
     player.y = -player.h;
+    player.prevX = player.x;
+    player.prevY = player.y;
+    player.rx = player.x;
+    player.ry = player.y;
     player.vx = 0;
     player.vy = 0;
     player.onGround = true;
@@ -1108,6 +1147,7 @@
     game.startY = player.y;
     game.topPlayerY = player.y;
     game.camY = player.y - VH * 0.58;
+    game.prevCamY = game.camY;
 
     generateWorld();
     buildSnow();
@@ -1296,11 +1336,13 @@
     if (game.state === 'playing') {
       game.state = 'paused';
       musicFade(0.0001, 0.25);
+      songPause();
       showOverlay('PAUZA', 'Wynik: ' + game.score + '\nWysokość: ' + game.heightM + ' m', 'WRÓĆ DO GRY', '<kbd>P</kbd> — powrót');
     } else if (game.state === 'paused') {
       game.state = 'playing';
       if (actx) music.next = actx.currentTime + 0.06;
       musicFade(0.45, 0.35);
+      songPlay();
       hideOverlay();
     }
   }
@@ -1309,8 +1351,10 @@
     muted = !muted;
     localStorage.setItem('ice-muted', muted ? '1' : '0');
     elMute.textContent = muted ? '🔇' : '🔊';
+    song.muted = muted;
     if (muted) {
       musicFade(0.0001, 0.12);
+      songPause();
     } else {
       sfx.start();
       startMusic();
@@ -1365,6 +1409,8 @@
 
   function updatePlayer() {
     const p = player;
+    p.prevX = p.x;
+    p.prevY = p.y;
 
     if (p.boost > 0) {
       p.boost--;
@@ -1636,6 +1682,7 @@
   }
 
   function step() {
+    game.prevCamY = game.camY;
     game.time++;
     if (game.shake > 0) game.shake *= 0.9;
     if (game.flash > 0) game.flash = Math.max(0, game.flash - 0.045);
@@ -2112,8 +2159,9 @@
   function drawPlayer() {
     const p = player;
     const sk = currentSkin();
-    const cx = p.x + p.w / 2;
-    const cy = p.y + p.h / 2 - game.camY;
+    const k = p.w / 26;                       // pingwin rośnie razem z hitboxem
+    const cx = p.rx + p.w / 2;
+    const cy = p.ry + p.h / 2 - game.camY;
 
     const sq = Math.max(-0.35, Math.min(0.35, p.squash));
     const scaleY = 1 + sq;
@@ -2121,7 +2169,7 @@
 
     ctx.save();
     ctx.translate(cx, cy);
-    ctx.scale(p.face * scaleX, scaleY);
+    ctx.scale(p.face * scaleX * k, scaleY * k);
 
     // cień na piętrze
     // (rysowany pod spodem jako osobna warstwa)
@@ -2194,7 +2242,7 @@
     if (p.onGround) {
       ctx.fillStyle = 'rgba(4, 18, 30, 0.35)';
       ctx.beginPath();
-      ctx.ellipse(cx, p.y + p.h - game.camY + 1, 15, 4, 0, 0, Math.PI * 2);
+      ctx.ellipse(cx, p.ry + p.h - game.camY + 1, 15 * k, 4 * k, 0, 0, Math.PI * 2);
       ctx.fill();
     }
   }
@@ -2296,9 +2344,17 @@
 
     PAL = buildPalette();
 
+    // interpolacja między krokami fizyki — płynnie także na 120/144 Hz
+    const A = game.alpha == null ? 1 : game.alpha;
+    player.rx = player.prevX + (player.x - player.prevX) * A;
+    player.ry = player.prevY + (player.y - player.prevY) * A;
+
     ctx.save();
     if (game.shake > 0.4) {
       ctx.translate((Math.random() - 0.5) * game.shake, (Math.random() - 0.5) * game.shake);
+    }
+    if (game.state === 'playing') {
+      ctx.translate(0, (game.camY - game.prevCamY) * (1 - A));
     }
 
     drawBackground();
@@ -2315,13 +2371,13 @@
     let shadowFloor = null;
     for (let i = 0; i < game.floors.length; i++) {
       const f = game.floors[i];
-      if (f.y >= player.y + player.h - 1 && (!shadowFloor || f.y < shadowFloor.y)) shadowFloor = f;
+      if (f.y >= player.ry + player.h - 1 && (!shadowFloor || f.y < shadowFloor.y)) shadowFloor = f;
     }
     if (shadowFloor && !player.onGround) {
-      const d = Math.min(1, (shadowFloor.y - (player.y + player.h)) / 160);
+      const d = Math.min(1, (shadowFloor.y - (player.ry + player.h)) / 160);
       ctx.fillStyle = 'rgba(4, 18, 30, ' + (0.28 * (1 - d)).toFixed(2) + ')';
       ctx.beginPath();
-      ctx.ellipse(player.x + player.w / 2, shadowFloor.y - game.camY, 14 * (1 - d * 0.4), 4, 0, 0, Math.PI * 2);
+      ctx.ellipse(player.rx + player.w / 2, shadowFloor.y - game.camY, 14 * (player.w / 26) * (1 - d * 0.4), 4, 0, 0, Math.PI * 2);
       ctx.fill();
     }
 
@@ -2376,6 +2432,7 @@
       step();
       acc -= STEP;
     }
+    game.alpha = Math.min(1, acc / STEP);
     musicPump();
     draw();
     requestAnimationFrame(frame);

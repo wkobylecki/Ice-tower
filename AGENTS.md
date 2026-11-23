@@ -6,8 +6,10 @@ Gra zręcznościowa w stylu Icy Tower. Cały projekt to **jeden samowystarczalny
 ## Zasady
 
 - **Język:** cały tekst w grze i w UI po polsku.
-- **Zero zależności:** brak CDN, bibliotek, fontów zewnętrznych, plików audio/obrazów. Grafika jest rysowana
-  w canvasie, dźwięk i muzyka generowane proceduralnie w WebAudio (`tone`, `sfx`, `SONGS`, `scheduleStep`).
+- **Zero zależności:** brak CDN, bibliotek, fontów zewnętrznych, obrazów. Grafika jest rysowana w canvasie,
+  efekty i muzyka generowane proceduralnie w WebAudio (`tone`, `sfx`, `SONGS`, `scheduleStep`).
+- **`music.mp3`** (opcjonalny podkład użytkownika) leży obok `index.html`, jest w `.gitignore` (prawa autorskie —
+  nie wrzucamy go do publicznego repo) i gra, gdy istnieje; bez pliku gra wraca do muzyki proceduralnej.
 - **Jeden plik:** nie rozbijaj gry na moduły ani pliki obok, chyba że użytkownik o to poprosi.
 - **Nie ruszaj** `../index.html` (Tetris) i `../astro-blaster/index.html` — to osobne projekty użytkownika.
 - **Git:** repo to `icy-tower/`, remote `git@github.com:wkobylecki/Ice-tower.git`, gałąź `main`.
@@ -28,10 +30,13 @@ Gra zręcznościowa w stylu Icy Tower. Cały projekt to **jeden samowystarczalny
 - `makeFloor()` / `addFloorUp()` / `generateWorld()` — proceduralne piętra (jednostronne kolizje),
   sople, sprężyny, kryształy.
 - `updatePlayer()` — ruch, coyote time, bufor skoku, wall jump i ślizg po ścianie, kolizje.
+- Płynność: `step()` zapisuje `prevCamY` / `prevX` / `prevY`, `frame()` liczy `game.alpha`, a `draw()`
+  interpoluje kamerę (przesunięcie kontekstu) i gracza (`player.rx/ry`) — brak szarpania na 120/144 Hz.
 - `updateCamera()` + `scrollSpeed()` — wieża przyśpiesza liniowo z wysokością (0.10 → limit 3.4).
 - `step()` (logika 60 Hz) i `frame()` (pętla z akumulatorem) + `draw()`.
-- Audio: `tone()` (SFX), `SONGS` / `musicPump()` / `scheduleStep()` (muzyka per strefa, tempo rośnie
-  z wysokością), `toggleMute()` (M) i `toggleFullscreen()` (F).
+- Audio: `song` (`music.mp3`, `songPlay()` / `songPause()`), `tone()` (SFX), `SONGS` / `musicPump()` /
+  `scheduleStep()` (zapasowa muzyka per strefa, tempo rośnie z wysokością), `toggleMute()` (M),
+  `toggleFullscreen()` (F). Pingwin: hitbox 31×41, rysunek skaluje się przez `p.w / 26`.
 
 ## Sprawdzanie zmian
 
