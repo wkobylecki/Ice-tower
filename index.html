@@ -176,8 +176,8 @@
   }
   .ghostBtn:active { transform: translateY(1px); }
 
-  /* ---------- sklep ---------- */
-  #shop {
+  /* ---------- sklep / muzyka ---------- */
+  #shop, #music {
     position: absolute;
     inset: 0;
     display: flex;
@@ -270,7 +270,7 @@
     25% { transform: translateX(-5px); }
     75% { transform: translateX(5px); }
   }
-  #shopClose {
+  #shopClose, #musicClose {
     margin-top: 14px;
     width: 100%;
     padding: 13px;
@@ -283,6 +283,33 @@
     cursor: pointer;
     background: linear-gradient(180deg, #d8f6ff, #79d5f7 55%, #35a7d8);
   }
+
+  /* ---------- wybór piosenki ---------- */
+  .trackList { display: flex; flex-direction: column; gap: 8px; }
+  .trackCard {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    width: 100%;
+    padding: 11px 14px;
+    text-align: left;
+    font: inherit;
+    color: #dff4ff;
+    background: rgba(12, 36, 56, 0.8);
+    border: 1px solid rgba(140, 220, 255, 0.18);
+    border-radius: 12px;
+    cursor: pointer;
+    transition: transform .12s ease, border-color .12s ease;
+  }
+  .trackCard:hover { transform: translateX(2px); border-color: rgba(140, 220, 255, 0.5); }
+  .trackCard.active {
+    border-color: #7ee0ff;
+    box-shadow: 0 0 0 1px #7ee0ff inset, 0 6px 18px rgba(90, 200, 255, 0.22);
+  }
+  .trackCard .ic { font-size: 17px; }
+  .trackCard .meta { display: flex; flex-direction: column; gap: 2px; }
+  .trackCard .meta b { font-size: 13px; letter-spacing: 0.04em; }
+  .trackCard .meta small { font-size: 10px; color: #8fd4f2; opacity: .85; }
 
   /* ---------- touch ---------- */
   #touch {
@@ -345,6 +372,7 @@
     <p id="ovText"></p>
     <button id="ovBtn">WSPINAJ SIĘ</button>
     <button id="ovShop" class="ghostBtn">SKLEP SKÓREK</button>
+    <button id="ovMusic" class="ghostBtn">🎵 PIOSENKA</button>
     <p id="ovHint"></p>
   </div>
 
@@ -356,6 +384,17 @@
       </div>
       <div class="shopGrid" id="shopGrid"></div>
       <button id="shopClose">WRÓĆ</button>
+    </div>
+  </div>
+
+  <div id="music">
+    <div class="shopCard">
+      <div class="shopHead">
+        <h2>PIOSENKA</h2>
+        <span class="bal" id="musicNow">—</span>
+      </div>
+      <div class="trackList" id="trackList"></div>
+      <button id="musicClose">WRÓĆ</button>
     </div>
   </div>
 
@@ -517,6 +556,10 @@
   const elShopGems = document.getElementById('shopGems');
   const elShopClose = document.getElementById('shopClose');
   const elOvShop = document.getElementById('ovShop');
+  const elOvMusic = document.getElementById('ovMusic');
+  const elMusic = document.getElementById('music');
+  const elTrackList = document.getElementById('trackList');
+  const elMusicNow = document.getElementById('musicNow');
 
   /* ==========================================================
      DŹWIĘK (WebAudio, bez plików)
@@ -756,18 +799,47 @@
     }
   }
 
-  /* ---------- podkład z pliku music.mp3 (jeśli jest w folderze gry) ---------- */
-  const song = new Audio('music.mp3');
+  /* ---------- podkłady z folderu music/ — gracz wybiera piosenkę ---------- */
+  const TRACKS = [
+    { id: 'all-my-loving', title: 'All My Loving', sub: 'The Beatles · remix', file: 'music/all-my-loving.mp3' },
+    { id: 'norwegian-wood', title: 'Norwegian Wood', sub: 'The Beatles · remix', file: 'music/norwegian-wood.mp3' },
+    { id: 'angels', title: 'Cowboys and Angels', sub: 'George Michael', file: 'music/angels.mp3' },
+    { id: 'careless-whisper', title: 'Careless Whisper', sub: 'George Michael', file: 'music/careless-whisper.mp3' },
+    { id: 'game', title: 'Muzyka gry', sub: 'proceduralna, zmienia się z biomem', file: null }
+  ];
+
+  let trackId = localStorage.getItem('ice-track') || TRACKS[0].id;
+  if (!TRACKS.some(function (t) { return t.id === trackId; })) trackId = TRACKS[0].id;
+
+  const song = new Audio();
   song.loop = true;
   song.preload = 'auto';
   song.volume = 0.45;
   song.muted = muted;
   let songOk = false;      // utwór faktycznie gra
   let songBroken = false;  // brak pliku / błąd odtwarzania → zostaje muzyka proceduralna
+  let loadedFile = null;
 
-  function songPlay() {
+  function currentTrack() {
+    for (let i = 0; i < TRACKS.length; i++) if (TRACKS[i].id === trackId) return TRACKS[i];
+    return TRACKS[0];
+  }
+
+  function loadTrack() {
+    const t = currentTrack();
+    songOk = false;
+    songBroken = !t.file;
+    if (!t.file) { songPause(); return; }
+    if (loadedFile === t.file) return;
+    loadedFile = t.file;
+    song.src = t.file;
+    try { song.load(); } catch (e) { /* ignorujemy */ }
+  }
+
+  function songPlay(fromStart) {
     if (muted || songBroken) return;
     try {
+      if (fromStart) song.currentTime = 0;
       const pr = song.play();
       if (pr && pr.catch) pr.catch(function () {});
     } catch (e) { /* przeglądarka może odmówić — wtedy gra muzyka proceduralna */ }
@@ -783,9 +855,9 @@
   });
   song.addEventListener('error', function () { songBroken = true; songOk = false; });
 
-  function startMusic() {
+  function startMusic(restart) {
     if (muted) return;
-    songPlay();
+    songPlay(restart);
     if (songOk || music.playing) return;
     if (!audio()) return;
     musicGain();
@@ -972,6 +1044,47 @@
   function closeShop() {
     shopOpen = false;
     elShop.classList.remove('show');
+  }
+
+  /* ---------- wybór piosenki ---------- */
+  let musicOpen = false;
+
+  function renderTracks() {
+    elMusicNow.textContent = currentTrack().title;
+    elTrackList.innerHTML = '';
+    for (let i = 0; i < TRACKS.length; i++) {
+      const t = TRACKS[i];
+      const card = document.createElement('button');
+      card.className = 'trackCard' + (t.id === trackId ? ' active' : '');
+      card.innerHTML = '<span class="ic">' + (t.file ? '🎵' : '🎼') + '</span>' +
+        '<span class="meta"><b>' + t.title + '</b><small>' + t.sub + '</small></span>';
+      card.addEventListener('click', function () { selectTrack(t.id); });
+      elTrackList.appendChild(card);
+    }
+  }
+
+  function selectTrack(id) {
+    if (id === trackId) { songPlay(true); return; }
+    trackId = id;
+    localStorage.setItem('ice-track', trackId);
+    songPause();
+    loadTrack();
+    songPlay(true);
+    if (music.playing) { music.step = 0; if (actx) music.next = actx.currentTime + 0.06; }
+    renderTracks();
+    sfx.crystal();
+  }
+
+  function openMusic() {
+    if (game.state === 'playing') togglePause();
+    musicOpen = true;
+    renderTracks();
+    elMusic.classList.add('show');
+  }
+
+  function closeMusic() {
+    musicOpen = false;
+    elMusic.classList.remove('show');
   }
 
   /* ==========================================================
@@ -1208,6 +1321,10 @@
       if (k === 'Escape' || k === 's' || k === 'S') { e.preventDefault(); closeShop(); }
       return;
     }
+    if (musicOpen) {
+      if (k === 'Escape' || k === 't' || k === 'T') { e.preventDefault(); closeMusic(); }
+      return;
+    }
     if (k === 'ArrowLeft' || k === 'a' || k === 'A') { keys.left = true; e.preventDefault(); }
     else if (k === 'ArrowRight' || k === 'd' || k === 'D') { keys.right = true; e.preventDefault(); }
     else if (k === ' ' || k === 'ArrowUp' || k === 'w' || k === 'W') {
@@ -1219,6 +1336,7 @@
     }
     else if (k === 'p' || k === 'P' || k === 'Escape') { e.preventDefault(); togglePause(); }
     else if (k === 's' || k === 'S') { e.preventDefault(); openShop(); }
+    else if (k === 't' || k === 'T') { e.preventDefault(); openMusic(); }
     else if (k === 'm' || k === 'M') { toggleMute(); }
     else if (k === 'f' || k === 'F') { e.preventDefault(); toggleFullscreen(); }
   }, { passive: false });
@@ -1320,7 +1438,7 @@
       'LODOWA WIEŻA',
       'Skacz z półki na półkę i wspinaj się jak najwyżej. Wieża sunie w górę!\nCo 1000 m nowy krajobraz: lodowe góry → pustynia → morze → góry → kosmos.\nZbieraj 💎 diamenty i kupuj za nie nowe skórki pingwina w sklepie.',
       'WSPINAJ SIĘ',
-      '<kbd>A</kbd> <kbd>D</kbd> / <kbd>←</kbd> <kbd>→</kbd> bieg &nbsp;•&nbsp; <kbd>spacja</kbd> skok<br><kbd>spacja</kbd> przy ścianie = odbicie od ściany<br><kbd>S</kbd> sklep skórek &nbsp;•&nbsp; <kbd>P</kbd> pauza &nbsp;•&nbsp; <kbd>M</kbd> dźwięk<br><kbd>F</kbd> pełny ekran<br>Rekord: ' + game.best + ' &nbsp;•&nbsp; 💎 ' + diamonds
+      '<kbd>A</kbd> <kbd>D</kbd> / <kbd>←</kbd> <kbd>→</kbd> bieg &nbsp;•&nbsp; <kbd>spacja</kbd> skok<br><kbd>spacja</kbd> przy ścianie = odbicie od ściany<br><kbd>S</kbd> sklep skórek &nbsp;•&nbsp; <kbd>T</kbd> piosenka &nbsp;•&nbsp; <kbd>P</kbd> pauza &nbsp;•&nbsp; <kbd>M</kbd> dźwięk<br><kbd>F</kbd> pełny ekran &nbsp;•&nbsp; 🎵 ' + currentTrack().title + '<br>Rekord: ' + game.best + ' &nbsp;•&nbsp; 💎 ' + diamonds
     );
   }
 
@@ -1329,7 +1447,7 @@
     resetWorld();
     hideOverlay();
     sfx.start();
-    startMusic();
+    startMusic(true);   // piosenka zawsze od początku
   }
 
   function togglePause() {
@@ -1369,6 +1487,9 @@
     game.shake = 14;
     game.flash = 0.7;
     sfx.over();
+    songPause();
+    music.playing = false;
+    musicFade(0.0001, 0.5);
 
     const record = game.score > game.best;
     if (record) {
@@ -1394,6 +1515,8 @@
   elMute.addEventListener('click', toggleMute);
   elOvShop.addEventListener('click', openShop);
   elShopClose.addEventListener('click', closeShop);
+  elOvMusic.addEventListener('click', openMusic);
+  document.getElementById('musicClose').addEventListener('click', closeMusic);
 
   document.addEventListener('visibilitychange', function () {
     if (document.hidden && game.state === 'playing') togglePause();
@@ -2442,6 +2565,7 @@
      START
      ========================================================== */
   elMute.textContent = muted ? '🔇' : '🔊';
+  loadTrack();
   resize();
   showMenu();
   window.addEventListener('resize', resize);

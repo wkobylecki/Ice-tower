@@ -8,8 +8,10 @@ Gra zręcznościowa w stylu Icy Tower. Cały projekt to **jeden samowystarczalny
 - **Język:** cały tekst w grze i w UI po polsku.
 - **Zero zależności:** brak CDN, bibliotek, fontów zewnętrznych, obrazów. Grafika jest rysowana w canvasie,
   efekty i muzyka generowane proceduralnie w WebAudio (`tone`, `sfx`, `SONGS`, `scheduleStep`).
-- **`music.mp3`** (opcjonalny podkład użytkownika) leży obok `index.html`, jest w `.gitignore` (prawa autorskie —
-  nie wrzucamy go do publicznego repo) i gra, gdy istnieje; bez pliku gra wraca do muzyki proceduralnej.
+- **`music/*.mp3`** — podkłady użytkownika (`TRACKS`), folder jest w `.gitignore` (prawa autorskie — nie wrzucamy
+  ich do publicznego repo). Gracz wybiera utwór w panelu 🎵 (przycisk w menu albo klawisz `T`), wybór siedzi w
+  `localStorage: ice-track`. Brak pliku → gra wraca do muzyki proceduralnej. Muzyka milknie po przegranej i startuje
+  od początku przy nowej grze.
 - **Jeden plik:** nie rozbijaj gry na moduły ani pliki obok, chyba że użytkownik o to poprosi.
 - **Nie ruszaj** `../index.html` (Tetris) i `../astro-blaster/index.html` — to osobne projekty użytkownika.
 - **Git:** repo to `icy-tower/`, remote `git@github.com:wkobylecki/Ice-tower.git`, gałąź `main`.
@@ -34,7 +36,7 @@ Gra zręcznościowa w stylu Icy Tower. Cały projekt to **jeden samowystarczalny
   interpoluje kamerę (przesunięcie kontekstu) i gracza (`player.rx/ry`) — brak szarpania na 120/144 Hz.
 - `updateCamera()` + `scrollSpeed()` — wieża przyśpiesza liniowo z wysokością (0.10 → limit 3.4).
 - `step()` (logika 60 Hz) i `frame()` (pętla z akumulatorem) + `draw()`.
-- Audio: `song` (`music.mp3`, `songPlay()` / `songPause()`), `tone()` (SFX), `SONGS` / `musicPump()` /
+- Audio: `TRACKS` / `song` (`loadTrack()`, `selectTrack()`, `songPlay()` / `songPause()`), `tone()` (SFX), `SONGS` / `musicPump()` /
   `scheduleStep()` (zapasowa muzyka per strefa, tempo rośnie z wysokością), `toggleMute()` (M),
   `toggleFullscreen()` (F). Pingwin: hitbox 31×41, rysunek skaluje się przez `p.w / 26`.
 
