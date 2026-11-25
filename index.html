@@ -804,7 +804,6 @@
     { id: 'all-my-loving', title: 'All My Loving', sub: 'The Beatles · remix', file: 'music/all-my-loving.mp3' },
     { id: 'norwegian-wood', title: 'Norwegian Wood', sub: 'The Beatles · remix', file: 'music/norwegian-wood.mp3' },
     { id: 'angels', title: 'Cowboys and Angels', sub: 'George Michael', file: 'music/angels.mp3' },
-    { id: 'careless-whisper', title: 'Careless Whisper', sub: 'George Michael', file: 'music/careless-whisper.mp3' },
     { id: 'game', title: 'Muzyka gry', sub: 'proceduralna, zmienia się z biomem', file: null }
   ];
 
@@ -1933,6 +1932,7 @@
     ctx.fillRect(0, 0, VIEW_W, VH);
 
     drawBiome();
+    drawScenery();
   }
 
   /* ---------- krajobraz biomu (parallax) ---------- */
@@ -2201,6 +2201,304 @@
     ridge(VH * 0.58, 210, 'rgba(150, 196, 224, 0.6)', 0.07, 320, true, 0.55);
     ridge(VH * 0.72, 180, 'rgba(102, 158, 196, 0.72)', 0.15, 260, true, 0.4);
     ridge(VH * 0.90, 170, 'rgba(58, 108, 150, 0.9)', 0.25, 210, true, 0.2);
+  }
+
+  /* ---------- drobne elementy scenerii w tle (statki, piramidy, chatki, planety) ---------- */
+  function drawSailboat(x, y, s) {
+    ctx.save();
+    ctx.translate(x, y);
+    // żagiel główny
+    ctx.fillStyle = 'rgba(250, 248, 240, 0.92)';
+    ctx.beginPath();
+    ctx.moveTo(0, -42 * s);
+    ctx.lineTo(16 * s, -2 * s);
+    ctx.lineTo(0, -2 * s);
+    ctx.closePath();
+    ctx.fill();
+    // żagiel przedni
+    ctx.fillStyle = 'rgba(236, 230, 212, 0.88)';
+    ctx.beginPath();
+    ctx.moveTo(-2 * s, -38 * s);
+    ctx.lineTo(-2 * s, -2 * s);
+    ctx.lineTo(-16 * s, -2 * s);
+    ctx.closePath();
+    ctx.fill();
+    // maszt
+    ctx.strokeStyle = 'rgba(46, 44, 40, 0.9)';
+    ctx.lineWidth = 1.6 * s;
+    ctx.beginPath();
+    ctx.moveTo(0, -46 * s);
+    ctx.lineTo(0, 1);
+    ctx.stroke();
+    // kadłub z burtą
+    ctx.fillStyle = 'rgba(38, 52, 66, 0.92)';
+    ctx.beginPath();
+    ctx.moveTo(-19 * s, -1);
+    ctx.lineTo(19 * s, -1);
+    ctx.lineTo(13 * s, 7 * s);
+    ctx.lineTo(-12 * s, 7 * s);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = 'rgba(198, 118, 88, 0.85)';
+    ctx.fillRect(-19 * s, -1, 38 * s, 1.8 * s);
+    ctx.restore();
+  }
+
+  function drawPyramid(x, baseY, w, h) {
+    ctx.fillStyle = 'rgba(214, 166, 112, 0.8)';
+    ctx.beginPath();
+    ctx.moveTo(x, baseY - h);
+    ctx.lineTo(x + w * 0.5, baseY);
+    ctx.lineTo(x - w * 0.5, baseY);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = 'rgba(172, 124, 80, 0.75)';
+    ctx.beginPath();
+    ctx.moveTo(x, baseY - h);
+    ctx.lineTo(x + w * 0.5, baseY);
+    ctx.lineTo(x + w * 0.08, baseY);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  function drawPalm(x, baseY, h, sway) {
+    ctx.strokeStyle = 'rgba(92, 66, 42, 0.85)';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(x, baseY);
+    ctx.quadraticCurveTo(x + h * 0.06, baseY - h * 0.55, x + h * 0.16, baseY - h);
+    ctx.stroke();
+    const tx = x + h * 0.16;
+    const ty = baseY - h;
+    ctx.fillStyle = 'rgba(74, 122, 66, 0.8)';
+    for (let i = 0; i < 6; i++) {
+      const a = -Math.PI * 0.9 + (i / 5) * Math.PI * 0.8 + sway;
+      ctx.beginPath();
+      ctx.ellipse(tx + Math.cos(a) * h * 0.24, ty + Math.sin(a) * h * 0.13, h * 0.24, h * 0.055, a * 0.6, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  function drawPine(x, baseY, h, alpha) {
+    ctx.fillStyle = 'rgba(24, 48, 52, ' + alpha + ')';
+    for (let i = 0; i < 3; i++) {
+      const t = i / 3;
+      const w = h * (0.32 - t * 0.09);
+      const yy = baseY - h * t * 0.62;
+      ctx.beginPath();
+      ctx.moveTo(x, yy - h * 0.5);
+      ctx.lineTo(x + w, yy);
+      ctx.lineTo(x - w, yy);
+      ctx.closePath();
+      ctx.fill();
+    }
+    ctx.fillStyle = 'rgba(120, 84, 56, ' + alpha + ')';
+    ctx.fillRect(x - 1.6, baseY - h * 0.08, 3.2, h * 0.1);
+  }
+
+  function drawChalet(x, baseY, s) {
+    // ściana z bali
+    ctx.fillStyle = 'rgba(96, 62, 42, 0.95)';
+    ctx.fillRect(x - 18 * s, baseY - 22 * s, 36 * s, 22 * s);
+    ctx.strokeStyle = 'rgba(66, 42, 28, 0.7)';
+    ctx.lineWidth = 1;
+    for (let i = 1; i < 4; i++) {
+      ctx.beginPath();
+      ctx.moveTo(x - 18 * s, baseY - 22 * s + i * 5.2 * s);
+      ctx.lineTo(x + 18 * s, baseY - 22 * s + i * 5.2 * s);
+      ctx.stroke();
+    }
+    // ośnieżony dach
+    ctx.fillStyle = 'rgba(244, 249, 255, 0.94)';
+    ctx.beginPath();
+    ctx.moveTo(x - 24 * s, baseY - 21 * s);
+    ctx.lineTo(x, baseY - 41 * s);
+    ctx.lineTo(x + 24 * s, baseY - 21 * s);
+    ctx.closePath();
+    ctx.fill();
+    // okno
+    ctx.fillStyle = 'rgba(255, 214, 128, 0.95)';
+    ctx.fillRect(x - 7 * s, baseY - 17 * s, 14 * s, 9 * s);
+    ctx.fillStyle = 'rgba(255, 240, 190, 0.25)';
+    ctx.fillRect(x - 26 * s, baseY - 18 * s, 52 * s, 18 * s);
+    // dym z komina
+    for (let i = 0; i < 4; i++) {
+      const t = ((game.time * 0.007 + i * 0.25) % 1);
+      ctx.fillStyle = 'rgba(232, 238, 246, ' + (0.2 * (1 - t)).toFixed(2) + ')';
+      ctx.beginPath();
+      ctx.arc(x + 13 * s + t * 16 * s, baseY - 36 * s - t * 44 * s, (2 + t * 6) * s, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  function drawRingedPlanet(x, y, r) {
+    ctx.save();
+    const g = ctx.createRadialGradient(x - r * 0.4, y - r * 0.45, r * 0.15, x, y, r);
+    g.addColorStop(0, 'rgba(206, 176, 255, 0.95)');
+    g.addColorStop(0.6, 'rgba(120, 96, 196, 0.9)');
+    g.addColorStop(1, 'rgba(46, 34, 92, 0.95)');
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(196, 176, 255, 0.55)';
+    ctx.lineWidth = Math.max(1.5, r * 0.09);
+    for (let i = 0; i < 3; i++) {
+      ctx.beginPath();
+      ctx.ellipse(x, y, r * (1.55 + i * 0.16), r * (0.34 + i * 0.04), -0.36, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  function drawScenery() {
+    const scene = PAL.scene || 'ice';
+    const t = game.time;
+
+    if (scene === 'sea') {
+      const hz = VH * 0.52;
+      // odległa wyspa z latarnią morską
+      const lx = VIEW_W * 0.19;
+      const ly = hz - 1;
+      ctx.fillStyle = 'rgba(54, 82, 92, 0.8)';
+      ctx.beginPath();
+      ctx.moveTo(lx - 52, ly);
+      ctx.quadraticCurveTo(lx - 24, ly - 24, lx + 2, ly - 18);
+      ctx.quadraticCurveTo(lx + 30, ly - 28, lx + 56, ly);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = 'rgba(238, 244, 250, 0.92)';
+      ctx.fillRect(lx - 2, ly - 46, 9, 28);
+      ctx.fillStyle = 'rgba(212, 62, 58, 0.9)';
+      ctx.fillRect(lx - 2, ly - 40, 9, 5);
+      ctx.fillRect(lx - 2, ly - 28, 9, 5);
+      ctx.fillStyle = 'rgba(22, 36, 50, 0.85)';
+      ctx.fillRect(lx - 4, ly - 54, 13, 8);
+      const pulse = 0.18 + 0.16 * (0.5 + 0.5 * Math.sin(t * 0.05));
+      const lg = ctx.createRadialGradient(lx + 2.5, ly - 50, 1, lx + 2.5, ly - 50, 78);
+      lg.addColorStop(0, 'rgba(255, 238, 168, ' + pulse.toFixed(2) + ')');
+      lg.addColorStop(1, 'rgba(255, 238, 168, 0)');
+      ctx.fillStyle = lg;
+      ctx.beginPath();
+      ctx.arc(lx + 2.5, ly - 50, 78, 0, Math.PI * 2);
+      ctx.fill();
+
+      // żaglówki płynące po horyzoncie (dalsze mniejsze, wolniejsze)
+      for (let i = 0; i < 3; i++) {
+        const s = 0.6 + i * 0.26;
+        const span = VIEW_W + 220;
+        const x = ((i * 331 + t * (0.16 + i * 0.08)) % span) - 110;
+        const bob = Math.sin(t * 0.035 + i * 2.1) * 1.8;
+        const y = hz + 12 + i * 13 + bob;
+        ctx.fillStyle = 'rgba(255, 252, 236, 0.09)';
+        ctx.beginPath();
+        ctx.ellipse(x, y + 11, 26 * s, 3.4 * s, 0, 0, Math.PI * 2);
+        ctx.fill();
+        drawSailboat(x, y, s);
+      }
+      return;
+    }
+
+    if (scene === 'dunes') {
+      const baseY = VH * 0.74;
+      drawPyramid(VIEW_W * 0.76, baseY - 4, 190, 118);
+      drawPyramid(VIEW_W * 0.9, baseY - 2, 126, 74);
+      const sway = Math.sin(t * 0.02) * 0.06;
+      drawPalm(VIEW_W * 0.14, VH * 0.86, 96, sway);
+      drawPalm(VIEW_W * 0.2, VH * 0.9, 74, sway * 1.3);
+      drawPalm(VIEW_W * 0.27, VH * 0.87, 58, -sway);
+      // karawana wielbłądów — delikatny zarys na wydmach
+      ctx.fillStyle = 'rgba(120, 78, 44, 0.45)';
+      for (let i = 0; i < 3; i++) {
+        const cx = VIEW_W * 0.42 + i * 34;
+        const cy = VH * 0.79;
+        ctx.beginPath();
+        ctx.ellipse(cx, cy, 11, 6, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.ellipse(cx + 9, cy - 7, 3.4, 3.4, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillRect(cx - 8, cy + 4, 2, 8);
+        ctx.fillRect(cx + 6, cy + 4, 2, 8);
+        ctx.beginPath();
+        ctx.ellipse(cx, cy - 5, 7, 4.4, 0, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      return;
+    }
+
+    if (scene === 'peaks') {
+      const baseY = VH * 0.86;
+      drawPine(VIEW_W * 0.09, baseY, 88, 0.55);
+      drawPine(VIEW_W * 0.14, baseY + 10, 62, 0.5);
+      drawPine(VIEW_W * 0.93, baseY, 76, 0.55);
+      drawChalet(VIEW_W * 0.8, baseY + 4, 0.85);
+      return;
+    }
+
+    if (scene === 'space') {
+      // gazowy olbrzym z pierścieniami
+      drawRingedPlanet(VIEW_W * 0.22, VH * 0.34, 62);
+      // satelita dryfujący w tle
+      const sx = VIEW_W * 0.74 + Math.sin(t * 0.004) * 34;
+      const sy = VH * 0.3 + Math.sin(t * 0.006 + 1) * 10;
+      ctx.save();
+      ctx.translate(sx, sy);
+      ctx.rotate(Math.sin(t * 0.003) * 0.25);
+      ctx.fillStyle = 'rgba(198, 212, 236, 0.85)';
+      ctx.fillRect(-6, -5, 12, 10);
+      ctx.fillStyle = 'rgba(96, 132, 214, 0.8)';
+      ctx.fillRect(-30, -4, 20, 8);
+      ctx.fillRect(10, -4, 20, 8);
+      ctx.strokeStyle = 'rgba(198, 212, 236, 0.6)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(0, -5);
+      ctx.lineTo(0, -16);
+      ctx.moveTo(0, 5);
+      ctx.lineTo(0, 13);
+      ctx.stroke();
+      ctx.fillStyle = 'rgba(255, 120, 120, ' + (0.35 + 0.45 * Math.abs(Math.sin(t * 0.06))).toFixed(2) + ')';
+      ctx.beginPath();
+      ctx.arc(0, -16, 2, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+      // smugi meteorów
+      for (let i = 0; i < 3; i++) {
+        const ph = ((t * 0.004 + i * 0.37) % 1);
+        const mx = VIEW_W * (0.5 + i * 0.16) + ph * 120;
+        const my = VH * (0.1 + i * 0.07) + ph * 70;
+        const a = 0.7 * Math.max(0, 1 - ph * 3);
+        if (a > 0.01) {
+          ctx.strokeStyle = 'rgba(210, 226, 255, ' + a.toFixed(2) + ')';
+          ctx.lineWidth = 1.6;
+          ctx.beginPath();
+          ctx.moveTo(mx, my);
+          ctx.lineTo(mx - 26, my - 14);
+          ctx.stroke();
+        }
+      }
+      return;
+    }
+
+    // lodowe góry — zorza polarna i sosny na zboczu
+    const aur = ctx.createLinearGradient(0, 0, 0, VH * 0.6);
+    aur.addColorStop(0, 'rgba(120, 255, 210, 0.14)');
+    aur.addColorStop(0.6, 'rgba(120, 210, 255, 0.08)');
+    aur.addColorStop(1, 'rgba(120, 210, 255, 0)');
+    ctx.fillStyle = aur;
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    for (let x = 0; x <= VIEW_W; x += 18) {
+      const y = VH * 0.24 + Math.sin(x * 0.012 + t * 0.02) * 26 + Math.sin(x * 0.031 - t * 0.013) * 12;
+      ctx.lineTo(x, y);
+    }
+    ctx.lineTo(VIEW_W, 0);
+    ctx.closePath();
+    ctx.fill();
+    drawPine(VIEW_W * 0.08, VH * 0.9, 74, 0.5);
+    drawPine(VIEW_W * 0.13, VH * 0.95, 54, 0.45);
+    drawPine(VIEW_W * 0.92, VH * 0.92, 64, 0.5);
   }
 
   // przyciemnienie marginesów poza wieżą — skupia wzrok na grze

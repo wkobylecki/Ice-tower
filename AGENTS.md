@@ -37,6 +37,10 @@ Gra zręcznościowa w stylu Icy Tower. Cały projekt to **jeden samowystarczalny
   `cracks` — rysy) rysowaną w `drawFloor()`: bryła z cieniem krawędzi, połyskiem, czapą śniegu i soplami.
 - Sceneria: `drawRocks()` (skalne ściany w marginesach `OFF_X`, parallax) i `drawBirds()` / `buildBirds()`
   (ptaki w tle, lot sinusoidalny); górskie grzbiety dostają ośnieżone szczyty przez `ridge(..., capA)`.
+- `drawScenery()` (wołane z `drawBackground()` po `drawBiome()`) — drobiazgi tła zależne od `PAL.scene`:
+  morze → żaglówki (`drawSailboat`) i wyspa z migającą latarnią, pustynia → piramidy (`drawPyramid`),
+  palmy (`drawPalm`) i karawana, góry → sosny (`drawPine`) i chatka z dymem (`drawChalet`),
+  kosmos → planeta z pierścieniami (`drawRingedPlanet`), satelita i meteory, lód → zorza i sosny.
 - `updatePlayer()` — ruch, coyote time, bufor skoku, wall jump i ślizg po ścianie, kolizje.
 - Płynność: `step()` zapisuje `prevCamY` / `prevX` / `prevY`, `frame()` liczy `game.alpha`, a `draw()`
   interpoluje kamerę (przesunięcie kontekstu) i gracza (`player.rx/ry`) — brak szarpania na 120/144 Hz.
